@@ -6,7 +6,7 @@ spotipy can only return fields documented on the Spotify web API https://develop
 
 ### How to use spotipy in an API?
 
-Check out [this example Flask app](examples/app.py)
+Check out [this example Flask app](https://github.com/spotipy-dev/spotipy-examples/tree/main/apps/flask_api)
 
 ### How can I store tokens in a database rather than on the filesystem?
 
@@ -51,7 +51,7 @@ must be specified: `search("abba", market="DE")`.
 If you cannot open a browser, set `open_browser=False` when instantiating SpotifyOAuth or SpotifyPKCE. You will be
 prompted to open the authorization URI manually.  
 
-See the [headless auth example](examples/headless.py).
+See the [headless auth example](https://github.com/spotipy-dev/spotipy-examples/blob/main/scripts/headless.py).
 
 ### My application is not responding
 
@@ -74,3 +74,9 @@ sp = spotipy.Spotify(
 )
 ```
 The error raised is a `spotipy.exceptions.SpotifyException`
+
+### I get a 404 when trying to access a Spotify-owned playlist
+
+Spotify has begun restricting access to algorithmic and Spotify-owned editorial playlists.
+Only applications with an existing extended mode will still have access to these playlists.
+Read more about this change here: [Introducing some changes to our Web API](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api)

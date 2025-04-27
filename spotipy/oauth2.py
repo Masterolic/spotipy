@@ -11,17 +11,18 @@ import base64
 import logging
 import os
 import time
+import urllib.parse as urllibparse
 import warnings
 import webbrowser
-
-import requests
-import urllib.parse as urllibparse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qsl, urlparse
 
+import requests
+
 from spotipy.cache_handler import CacheFileHandler, CacheHandler
 from spotipy.exceptions import SpotifyOauthError, SpotifyStateError
-from spotipy.util import CLIENT_CREDS_ENV_VARS, get_host_port, normalize_scope
+from spotipy.util import (CLIENT_CREDS_ENV_VARS, REQUESTS_SESSION,
+                          get_host_port, normalize_scope)
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +123,7 @@ class SpotifyAuthBase:
 
     def __del__(self):
         """Make sure the connection (pool) gets closed"""
-        if isinstance(self._session, requests.Session):
+        if getattr(self, "_session", None) and isinstance(self._session, REQUESTS_SESSION):
             self._session.close()
 
 
@@ -217,10 +218,8 @@ class SpotifyClientCredentials(SpotifyAuthBase):
             self.client_id, self.client_secret
         )
 
-        logger.debug(
-            "sending POST request to %s with Headers: %s and Body: %r",
-            self.OAUTH_TOKEN_URL, headers, payload
-        )
+        logger.debug(f"Sending POST request to {self.OAUTH_TOKEN_URL} with Headers: "
+                     f"{headers} and Body: {payload}")
 
         try:
             response = self._session.post(
@@ -401,9 +400,9 @@ class SpotifyOAuth(SpotifyAuthBase):
         auth_url = self.get_authorize_url()
         try:
             webbrowser.open(auth_url)
-            logger.info("Opened %s in your browser", auth_url)
+            logger.info(f"Opened {auth_url} in your browser")
         except webbrowser.Error:
-            logger.error("Please navigate here: %s", auth_url)
+            logger.error(f"Please navigate here: {auth_url}")
 
     def _get_auth_response_interactive(self, open_browser=False):
         if open_browser:
@@ -412,8 +411,8 @@ class SpotifyOAuth(SpotifyAuthBase):
         else:
             url = self.get_authorize_url()
             prompt = (
-                "Go to the following URL: {}\n"
-                "Enter the URL you were redirected to: ".format(url)
+                f"Go to the following URL: {url}\n"
+                "Enter the URL you were redirected to: "
             )
         response = self._get_user_input(prompt)
         state, code = SpotifyOAuth.parse_auth_response_url(response)
@@ -445,6 +444,17 @@ class SpotifyOAuth(SpotifyAuthBase):
         redirect_info = urlparse(self.redirect_uri)
         redirect_host, redirect_port = get_host_port(redirect_info.netloc)
 
+        if redirect_host == 'localhost':
+            logger.warning(
+                "Using 'localhost' as a redirect URI is being deprecated. "
+                "Use a loopback IP address such as 127.0.0.1 "
+                "to ensure your app remains functional.")
+
+        if redirect_info.scheme == "http" and redirect_host not in ("127.0.0.1", "localhost"):
+            logger.warning(
+                "Redirect URIs using HTTP are being deprecated. "
+                "To ensure your app remains functional, use HTTPS instead.")
+
         if open_browser is None:
             open_browser = self.open_browser
 
@@ -457,12 +467,11 @@ class SpotifyOAuth(SpotifyAuthBase):
             if redirect_port:
                 return self._get_auth_response_local_server(redirect_port)
             else:
-                logger.warning('Using `%s` as redirect URI without a port. '
-                               'Specify a port (e.g. `%s:8080`) to allow '
+                logger.warning(f'Using `{redirect_host}` as redirect URI without a port. '
+                               f'Specify a port (e.g. `{redirect_host}:8080`) to allow '
                                'automatic retrieval of authentication code '
                                'instead of having to copy and paste '
-                               'the URL your browser is redirected to.',
-                               redirect_host, redirect_host)
+                               'the URL your browser is redirected to.')
 
         return self._get_auth_response_interactive(open_browser=open_browser)
 
@@ -510,10 +519,8 @@ class SpotifyOAuth(SpotifyAuthBase):
 
         headers = self._make_authorization_headers()
 
-        logger.debug(
-            "sending POST request to %s with Headers: %s and Body: %r",
-            self.OAUTH_TOKEN_URL, headers, payload
-        )
+        logger.debug(f"Sending POST request to {self.OAUTH_TOKEN_URL} with Headers: "
+                     f"{headers} and Body: {payload}")
 
         try:
             response = self._session.post(
@@ -540,10 +547,8 @@ class SpotifyOAuth(SpotifyAuthBase):
 
         headers = self._make_authorization_headers()
 
-        logger.debug(
-            "sending POST request to %s with Headers: %s and Body: %r",
-            self.OAUTH_TOKEN_URL, headers, payload
-        )
+        logger.debug(f"Sending POST request to {self.OAUTH_TOKEN_URL} with Headers: "
+                     f"{headers} and Body: {payload}")
 
         try:
             response = self._session.post(
@@ -733,9 +738,9 @@ class SpotifyPKCE(SpotifyAuthBase):
         auth_url = self.get_authorize_url(state)
         try:
             webbrowser.open(auth_url)
-            logger.info("Opened %s in your browser", auth_url)
+            logger.info(f"Opened {auth_url} in your browser")
         except webbrowser.Error:
-            logger.error("Please navigate here: %s", auth_url)
+            logger.error(f"Please navigate here: {auth_url}")
 
     def _get_auth_response(self, open_browser=None):
         logger.info('User authentication requires interaction with your '
@@ -750,6 +755,17 @@ class SpotifyPKCE(SpotifyAuthBase):
         if open_browser is None:
             open_browser = self.open_browser
 
+        if redirect_host == 'localhost':
+            logger.warning(
+                "Using 'localhost' as a redirect URI is being deprecated. "
+                "Use a loopback IP address such as 127.0.0.1 "
+                "to ensure your app remains functional.")
+
+        if redirect_info.scheme == "http" and redirect_host not in ("127.0.0.1", "localhost"):
+            logger.warning(
+                "Redirect URIs using HTTP are being deprecated. "
+                "To ensure your app remains functional, use HTTPS instead.")
+
         if (
                 open_browser
                 and redirect_host in ("127.0.0.1", "localhost")
@@ -759,12 +775,11 @@ class SpotifyPKCE(SpotifyAuthBase):
             if redirect_port:
                 return self._get_auth_response_local_server(redirect_port)
             else:
-                logger.warning('Using `%s` as redirect URI without a port. '
-                               'Specify a port (e.g. `%s:8080`) to allow '
+                logger.warning(f'Using `{redirect_host}` as redirect URI without a port. '
+                               f'Specify a port (e.g. `{redirect_host}:8080`) to allow '
                                'automatic retrieval of authentication code '
                                'instead of having to copy and paste '
-                               'the URL your browser is redirected to.',
-                               redirect_host, redirect_host)
+                               'the URL your browser is redirected to.')
         return self._get_auth_response_interactive(open_browser=open_browser)
 
     def _get_auth_response_local_server(self, redirect_port):
@@ -788,10 +803,8 @@ class SpotifyPKCE(SpotifyAuthBase):
             prompt = "Enter the URL you were redirected to: "
         else:
             url = self.get_authorize_url()
-            prompt = (
-                "Go to the following URL: {}\n"
-                "Enter the URL you were redirected to: ".format(url)
-            )
+            prompt = (f"Go to the following URL: {url}\n"
+                      f"Enter the URL you were redirected to: ")
         response = self._get_user_input(prompt)
         state, code = self.parse_auth_response_url(response)
         if self.state is not None and self.state != state:
@@ -867,10 +880,8 @@ class SpotifyPKCE(SpotifyAuthBase):
 
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-        logger.debug(
-            "sending POST request to %s with Headers: %s and Body: %r",
-            self.OAUTH_TOKEN_URL, headers, payload
-        )
+        logger.debug(f"Sending POST request to {self.OAUTH_TOKEN_URL} with Headers: "
+                     f"{headers} and Body: {payload}")
 
         try:
             response = self._session.post(
@@ -898,10 +909,8 @@ class SpotifyPKCE(SpotifyAuthBase):
 
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-        logger.debug(
-            "sending POST request to %s with Headers: %s and Body: %r",
-            self.OAUTH_TOKEN_URL, headers, payload
-        )
+        logger.debug(f"Sending POST request to {self.OAUTH_TOKEN_URL} with Headers: "
+                     f"{headers} and Body: {payload}")
 
         try:
             response = self._session.post(
@@ -1023,7 +1032,7 @@ class SpotifyImplicitGrant(SpotifyAuthBase):
                     (will set `cache_path` to `.cache-{username}`)
         * show_dialog: Interpreted as boolean
         """
-        logger.warning("The OAuth standard no longer recommends the Implicit "
+        logger.warning("Spotify is deprecating the Implicit "
                        "Grant Flow for client-side code. Use the SpotifyPKCE "
                        "auth manager instead of SpotifyImplicitGrant. For "
                        "more details and a guide to switching, see "
@@ -1152,9 +1161,9 @@ class SpotifyImplicitGrant(SpotifyAuthBase):
         auth_url = self.get_authorize_url(state)
         try:
             webbrowser.open(auth_url)
-            logger.info("Opened %s in your browser", auth_url)
+            logger.info(f"Opened {auth_url} in your browser")
         except webbrowser.Error:
-            logger.error("Please navigate here: %s", auth_url)
+            logger.error(f"Please navigate here: {auth_url}")
 
     def get_auth_response(self, state=None):
         """ Gets a new auth **token** with user interaction """
@@ -1238,19 +1247,21 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._write("<html><body><h1>Invalid request</h1></body></html>")
             return
 
-        self._write("""<html>
+        self._write(f"""<html>
 <script>
 window.close()
 </script>
 <body>
-<h1>Authentication status: {}</h1>
+<h1>Authentication status: {status}</h1>
 This window can be closed.
 <script>
 window.close()
 </script>
-<button class="closeButton" style="cursor: pointer" onclick="window.close();">Close Window</button>
+<button class="closeButton" style="cursor: pointer" onclick="window.close();">
+Close Window
+</button>
 </body>
-</html>""".format(status))
+</html>""")
 
     def _write(self, text):
         return self.wfile.write(text.encode("utf-8"))

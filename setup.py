@@ -8,12 +8,20 @@ memcache_cache_reqs = [
 ]
 
 extra_reqs = {
-    'memcache': memcache_cache_reqs
+    'memcache': [
+        'pymemcache>=3.5.2'
+    ],
+    'test': [
+        'autopep8>=2.3.2',
+        'flake8>=7.1.1',
+        'flake8-string-format>=0.3.0',
+        'isort>=5.13.2'
+    ]
 }
 
 setup(
     name='spotipy',
-    version='2.24.0',
+    version='2.25.1',
     description='A light weight Python library for the Spotify Web API',
     long_description=long_description,
     long_description_content_type="text/markdown",

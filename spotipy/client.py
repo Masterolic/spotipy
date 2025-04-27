@@ -6,13 +6,12 @@ import json
 import logging
 import re
 import warnings
+from collections import defaultdict
 
 import requests
 
 from spotipy.exceptions import SpotifyException
-from spotipy.util import Retry
-
-from collections import defaultdict
+from spotipy.util import REQUESTS_SESSION, Retry
 
 logger = logging.getLogger(__name__)
 
@@ -212,11 +211,8 @@ class Spotify:
 
     def __del__(self):
         """Make sure the connection (pool) gets closed"""
-        try:
-            if isinstance(self._session, requests.Session):
-                self._session.close()
-        except AttributeError:
-            pass
+        if getattr(self, "_session", None) and isinstance(self._session, REQUESTS_SESSION):
+            self._session.close()
 
     def _build_session(self):
         self._session = requests.Session()
@@ -263,8 +259,8 @@ class Spotify:
         if self.language is not None:
             headers["Accept-Language"] = self.language
 
-        logger.debug('Sending %s to %s with Params: %s Headers: %s and Body: %r ',
-                     method, url, args.get("params"), headers, args.get('data'))
+        logger.debug(f"Sending {method} to {url} with Params: "
+                     f"{args.get('params')} Headers: {headers} and Body: {args.get('data')!r}")
 
         try:
             response = self._session.request(
@@ -289,10 +285,8 @@ class Spotify:
                 msg = response.text or None
                 reason = None
 
-            logger.error(
-                'HTTP Error for %s to %s with Params: %s returned %s due to %s',
-                method, url, args.get("params"), response.status_code, msg
-            )
+            logger.error(f"HTTP Error for {method} to {url} with Params: "
+                         f"{args.get('params')} returned {response.status_code} due to {msg}")
 
             raise SpotifyException(
                 response.status_code,
@@ -317,7 +311,7 @@ class Spotify:
         except ValueError:
             results = None
 
-        logger.debug('RESULTS: %s', results)
+        logger.debug(f'RESULTS: {results}')
         return results
 
     def _get(self, url, args=None, payload=None, **kwargs):
@@ -458,6 +452,11 @@ class Spotify:
             Parameters:
                 - artist_id - the artist ID, URI or URL
         """
+        warnings.warn(
+            "You're using `artist_related_artists(...)`, "
+            "which is marked as deprecated by Spotify.",
+            DeprecationWarning
+        )
         trid = self._get_id("artist", artist_id)
         return self._get("artists/" + trid + "/related-artists")
 
@@ -1242,10 +1241,8 @@ class Spotify:
                 if they follow the playlist. Maximum: 5 ids.
 
         """
-        endpoint = "playlists/{}/followers/contains?ids={}"
-        return self._get(
-            endpoint.format(playlist_id, ",".join(user_ids))
-        )
+        endpoint = f"playlists/{playlist_id}/followers/contains?ids={','.join(user_ids)}"
+        return self._get(endpoint)
 
     def me(self):
         """ Get detailed profile information about the current user.
@@ -1259,10 +1256,20 @@ class Spotify:
         """
         return self.me()
 
-    def current_user_playing_track(self):
+    def current_user_playing_track(self, market=None, additional_types=("track",)):
         """ Get information about the current users currently playing track.
+
+            Parameters:
+                - market - An ISO 3166-1 alpha-2 country code or the
+                           string from_token.
+                - additional_types - list of item types to return.
+                                     valid types are: track and episode
         """
-        return self._get("me/player/currently-playing")
+        return self._get(
+            "me/player/currently-playing",
+            market=market,
+            additional_types=",".join(additional_types)
+        )
 
     def current_user_saved_albums(self, limit=20, offset=0, market=None):
         """ Gets a list of the albums saved in the current authorized user's
@@ -1492,7 +1499,7 @@ class Spotify:
         """ Get the current user's top artists
 
             Parameters:
-                - limit - the number of entities to return
+                - limit - the number of entities to return (max 50)
                 - offset - the index of the first entity to return
                 - time_range - Over what time frame are the affinities computed
                   Valid-values: short_term, medium_term, long_term
@@ -1587,6 +1594,11 @@ class Spotify:
                   (the first object). Use with limit to get the next set of
                   items.
         """
+        warnings.warn(
+            "You're using `featured_playlists(...)`, "
+            "which is marked as deprecated by Spotify.",
+            DeprecationWarning,
+        )
         return self._get(
             "browse/featured-playlists",
             locale=locale,
@@ -1671,6 +1683,11 @@ class Spotify:
                   (the first object). Use with limit to get the next set of
                   items.
         """
+        warnings.warn(
+            "You're using `category_playlists(...)`, "
+            "which is marked as deprecated by Spotify.",
+            DeprecationWarning,
+        )
         return self._get(
             "browse/categories/" + category_id + "/playlists",
             country=country,
@@ -1708,6 +1725,12 @@ class Spotify:
                     attributes listed in the documentation, these values
                     provide filters and targeting on results.
         """
+        warnings.warn(
+            "You're using `recommendations(...)`, "
+            "which is marked as deprecated by Spotify.",
+            DeprecationWarning,
+        )
+
         params = dict(limit=limit)
         if seed_artists:
             params["seed_artists"] = ",".join(
@@ -1745,6 +1768,11 @@ class Spotify:
         return self._get("recommendations", **params)
 
     def recommendation_genre_seeds(self):
+        warnings.warn(
+            "You're using `recommendation_genre_seeds(...)`, "
+            "which is marked as deprecated by Spotify.",
+            DeprecationWarning,
+        )
         """ Get a list of genres available for the recommendations function.
         """
         return self._get("recommendations/available-genre-seeds")
@@ -1754,6 +1782,11 @@ class Spotify:
             Parameters:
                 - track_id - a track URI, URL or ID
         """
+        warnings.warn(
+            "You're using `audio_analysis(...)`, "
+            "which is marked as deprecated by Spotify.",
+            DeprecationWarning,
+        )
         trid = self._get_id("track", track_id)
         return self._get("audio-analysis/" + trid)
 
@@ -1762,6 +1795,12 @@ class Spotify:
             Parameters:
                 - tracks - a list of track URIs, URLs or IDs, maximum: 100 ids
         """
+        warnings.warn(
+            "You're using `audio_features(...)`, "
+            "which is marked as deprecated by Spotify.",
+            DeprecationWarning,
+        )
+
         if isinstance(tracks, str):
             trackid = self._get_id("track", tracks)
             results = self._get("audio-features/?ids=" + trackid)
@@ -2034,11 +2073,9 @@ class Spotify:
     def _search_multiple_markets(self, q, limit, offset, type, markets, total):
         if total and limit > total:
             limit = total
-            warnings.warn(
-                "limit was auto-adjusted to equal {} as it must not be higher than total".format(
-                    total),
-                UserWarning,
-            )
+            warnings.warn(f"limit was auto-adjusted to equal {total} "
+                          f"as it must not be higher than total",
+                          UserWarning)
 
         results = defaultdict(dict)
         item_types = [item_type + "s" for item_type in type.split(",")]
