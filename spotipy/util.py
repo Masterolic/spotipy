@@ -155,31 +155,42 @@ def normalize_scope(scope):
 
 class Retry(urllib3.Retry):
     """
-    Custom class for printing a warning when a rate/request limit is reached.
+    Custom class for printing a warning when a rate/request limit is reached,
+    without actually sleeping based on Retry-After header.
     """
-
+    
     def increment(
-            self,
-            method: str | None = None,
-            url: str | None = None,
-            response: urllib3.BaseHTTPResponse | None = None,
-            error: Exception | None = None,
-            _pool: urllib3.connectionpool.ConnectionPool | None = None,
-            _stacktrace: TracebackType | None = None,
+        self,
+        method: str | None = None,
+        url: str | None = None,
+        response: urllib3.BaseHTTPResponse | None = None,
+        error: Exception | None = None,
+        _pool: urllib3.connectionpool.ConnectionPool | None = None,
+        _stacktrace: TracebackType | None = None,
     ) -> urllib3.Retry:
         if response:
             retry_header = response.headers.get("Retry-After")
-            if str(retry_header).isdigit():
-               retry_header = int(retry_header)
-               if retry_header >=10:
-                    return 0
-            if self.is_retry(method, response.status, bool(retry_header)):
-                retry_header = retry_header or 0
-                logger.warning("Your application has reached a rate/request limit. "
-                               f"Retry will occur after: {retry_header} s")
-        return super().increment(method,
-                                 url,
-                                 response=response,
-                                 error=error,
-                                 _pool=_pool,
-                                 _stacktrace=_stacktrace)
+            if retry_header and str(retry_header).isdigit():
+                retry_header_int = int(retry_header)
+                if retry_header_int >= 10:
+                    # Just warning, but don't apply sleep
+                    logger.warning(
+                        f"Your application has reached a rate/request limit. "
+                        f"Server asked retry after {retry_header_int}s, but ignoring sleep."
+                    )
+        # Always call super().increment normally
+        return super().increment(
+            method,
+            url,
+            response=response,
+            error=error,
+            _pool=_pool,
+            _stacktrace=_stacktrace,
+        )
+    
+    def get_retry_after(self, response):
+        """
+        Always ignore server's Retry-After header (disable auto sleep).
+        """
+        return None  # <<< Important: make urllib3 not sleep at all
+        
