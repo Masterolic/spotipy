@@ -192,5 +192,11 @@ class Retry(urllib3.Retry):
         """
         Always ignore server's Retry-After header (disable auto sleep).
         """
+        if response:
+            retry_header = response.headers.get("Retry-After")
+            if retry_header and str(retry_header).isdigit():
+                retry_header_int = int(retry_header)
+                if retry_header_int <= 10:
+                   return retry_header_int
         return None  # <<< Important: make urllib3 not sleep at all
         
