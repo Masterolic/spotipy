@@ -169,12 +169,13 @@ class Retry(urllib3.Retry):
     ) -> urllib3.Retry:
         if response:
             retry_header = response.headers.get("Retry-After")
-            retry_heade = retry_header
-            retry_header = retry_header if retry_header.isdigit and int(retry_header) <= 10 else  0   
-            if int(retry_heade) and int(retry_heade) >10:
-               return 
+            if str(retry_header).isdigit():
+               retry_header = int(retry_header)
+               if retry_header >=10:
+                    return 0
             if self.is_retry(method, response.status, bool(retry_header)):
-               logger.warning("Your application has reached a rate/request limit. "
+                retry_header = retry_header or 0
+                logger.warning("Your application has reached a rate/request limit. "
                                f"Retry will occur after: {retry_header} s")
         return super().increment(method,
                                  url,
