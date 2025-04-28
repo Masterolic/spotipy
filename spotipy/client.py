@@ -223,7 +223,8 @@ class Spotify:
             allowed_methods=frozenset(['GET', 'POST', 'PUT', 'DELETE']),
             status=self.status_retries,
             backoff_factor=self.backoff_factor,
-            status_forcelist=self.status_forcelist)
+            status_forcelist=self.status_forcelist,
+            respect_retry_after_header=False)
 
         adapter = requests.adapters.HTTPAdapter(max_retries=retry)
         self._session.mount('http://', adapter)
