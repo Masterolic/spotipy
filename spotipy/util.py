@@ -197,6 +197,6 @@ class Retry(urllib3.Retry):
             if retry_header and str(retry_header).isdigit():
                 retry_header_int = int(retry_header)
                 if retry_header_int <= 30:
-                   return retry_header_int
+                   time.sleep(retry_header_int)
         return None  # <<< Important: make urllib3 not sleep at all
         
