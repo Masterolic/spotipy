@@ -196,7 +196,7 @@ class Retry(urllib3.Retry):
             retry_header = response.headers.get("Retry-After")
             if retry_header and str(retry_header).isdigit():
                 retry_header_int = int(retry_header)
-                if retry_header_int <= 10:
+                if retry_header_int <= 30:
                    return retry_header_int
         return None  # <<< Important: make urllib3 not sleep at all
         
