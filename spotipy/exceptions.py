@@ -20,8 +20,8 @@ class SpotifyException(SpotifyBaseException):
                 f"code: {self.code} - {self.msg}, "
                 f"reason: {self.reason}")
     @property
-    def code(self):
-        return self.code
+    def status_code(self):
+        return int(self.code)
 
 
 class SpotifyOauthError(SpotifyBaseException):
