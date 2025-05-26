@@ -21,7 +21,7 @@ class SpotifyException(SpotifyBaseException):
                 f"reason: {self.reason}")
     @property
     def status_code(self):
-        return int(self.code)
+        return int(self.http_status)
 
 
 class SpotifyOauthError(SpotifyBaseException):
