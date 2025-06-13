@@ -173,7 +173,7 @@ class Retry(urllib3.Retry):
             retry_header = response.headers.get("Retry-After")
             if retry_header and str(retry_header).isdigit():
                 retry_header_int = int(retry_header)
-                if retry_header_int >= 10:
+                if retry_header_int >= 30:
                     # Just warning, but don't apply sleep
                     logger.warning(
                         f"Your application has reached a rate/request limit. "
