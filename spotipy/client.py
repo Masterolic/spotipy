@@ -306,9 +306,9 @@ class Spotify:
             raise SpotifyException(
                 429,
                 -1,
-                f"{request.path_url}:\n Max Retries",
+                f"{request.path_url}: {retry_error}\n Max Retries",
                 reason=reason,
-                headers=response.headers
+         #       headers=response.headers
             )
         except ValueError:
             results = None
