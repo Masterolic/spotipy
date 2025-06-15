@@ -298,7 +298,7 @@ class Spotify:
             )
         except requests.exceptions.RetryError as retry_error:
             request = retry_error.request
-            logger.error('Max Retries reached')
+            logger.error('Max Retries reached %s', self.retries)
             try:
                 reason = retry_error.args[0].reason
             except (IndexError, AttributeError):
@@ -306,7 +306,7 @@ class Spotify:
             raise SpotifyException(
                 429,
                 -1,
-                f"{request.path_url}: {retry_error}\n Max Retries",
+                f"{request.path_url}: {retry_error}\n Max Retries {self.retries}",
                 reason=reason,
          #       headers=response.headers
             )
