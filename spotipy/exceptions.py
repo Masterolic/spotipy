@@ -18,7 +18,11 @@ class SpotifyException(SpotifyBaseException):
     def __str__(self):
         return (f"http status: {self.http_status}, "
                 f"code: {self.code} - {self.msg}, "
-                f"reason: {self.reason}")
+                f"reason: {self.reason}, "
+                f"headers: {self.headers}, ")
+    @property
+    def status_code(self):
+        return int(self.http_status)
 
 
 class SpotifyOauthError(SpotifyBaseException):
