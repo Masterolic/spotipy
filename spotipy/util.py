@@ -9,6 +9,9 @@ import os
 import warnings
 from types import TracebackType
 
+from concurrent.futures import ThreadPoolExecutor
+import time
+
 import requests
 import urllib3
 
@@ -26,6 +29,7 @@ CLIENT_CREDS_ENV_VARS = {
 # workaround for garbage collection
 REQUESTS_SESSION = requests.Session
 
+executor = ThreadPoolExecutor()
 
 def prompt_for_user_token(
     username=None,
@@ -155,7 +159,9 @@ def normalize_scope(scope):
         return " ".join(sorted(scopes))
     else:
         return None
-
+        
+def delay(x):
+    time.sleep(x)
 
 class Retry(urllib3.Retry):
     """
@@ -175,11 +181,20 @@ class Retry(urllib3.Retry):
             retry_header = response.headers.get("Retry-After")
             if self.is_retry(method, response.status, bool(retry_header)):
                 retry_header = retry_header or 0
-                logger.warning("Your application has reached a rate/request limit. "
+                if retry_header and retry_header <= 25:
+                   logger.warning("Your application has reached a rate/request limit. "
                                f"Retry will occur after: {retry_header} s")
+                   response.headers["Retry-After"] = None
+                   future = executor.submit(delay, retry_header)
+                   while not future.done():
+                         time.sleep(0.05)                 
+                else:
+                     logger.warning(f"Your application has skipped due to rate limit {retry_header} s")
+                    
         return super().increment(method,
                                  url,
                                  response=response,
                                  error=error,
                                  _pool=_pool,
-                                 _stacktrace=_stacktrace)
+                                 _error=error,stacktrace=_stacktrace,
+                                 respect_retry_after_header=False)
