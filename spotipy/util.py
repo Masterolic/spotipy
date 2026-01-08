@@ -8,9 +8,9 @@ import logging
 import os
 import warnings
 from types import TracebackType
-
 import requests
 import urllib3
+from urllib3.exceptions import MaxRetryError
 
 import spotipy
 
@@ -180,7 +180,11 @@ class Retry(urllib3.Retry):
                                f"Retry will occur after: {retry_header} s")
                 else:
                      logger.warning(f"Your application has skipped due to rate limit {retry_header} s")
-                     return retry_header
+                     raise MaxRetryError(
+                        _pool,
+                        url,
+                        reason=f"Retry-After too large: {retry_header} s"
+                     )
         return super().increment(method,
                                  url,
                                  response=response,
